@@ -505,6 +505,10 @@
       <span class="jersey-hash">#</span>
       <input type="number" class="jersey-input" id="jerseyInput" placeholder="00" inputmode="numeric" pattern="[0-9]*" maxlength="3" />
     </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+      <label style="color:var(--text-mid);font-size:14px;font-weight:600;white-space:nowrap;">Play #</label>
+      <input type="number" class="form-input" id="playNumInput" placeholder="e.g. 12" inputmode="numeric" min="1" style="flex:1;padding:8px 12px;font-size:15px;border-radius:8px;text-align:center;" />
+    </div>
     <input type="text" class="note-input-modal" id="noteInputModal" placeholder="Optional note (play, detail, etc.)" />
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeJerseyModal()">Cancel</button>
@@ -890,6 +894,7 @@
     pendingCategory = category;
     document.getElementById('jerseyModalTitle').textContent = category;
     document.getElementById('jerseyInput').value = '';
+    document.getElementById('playNumInput').value = '';
     document.getElementById('noteInputModal').value = '';
     document.getElementById('jerseyModal').classList.add('show');
     setTimeout(() => document.getElementById('jerseyInput').focus(), 250);
@@ -903,6 +908,8 @@
   function submitJerseyEntry() {
     const jersey = document.getElementById('jerseyInput').value.trim();
     if (!jersey) { showToast('Enter a jersey number'); document.getElementById('jerseyInput').focus(); return; }
+    const playNum = document.getElementById('playNumInput').value.trim();
+    if (!playNum) { showToast('Enter the play number'); document.getElementById('playNumInput').focus(); return; }
 
     const note = document.getElementById('noteInputModal').value.trim();
     const raw = document.getElementById('sessionPeriod').value;
@@ -913,6 +920,7 @@
     state.counters[cat] = (state.counters[cat] || 0) + 1;
     state.events.push({
       id: Date.now(), category: cat, jersey: jersey,
+      playNum: playNum,
       period: period, note: note,
       time: now.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', second:'2-digit' }),
       timestamp: now.toISOString()
@@ -926,11 +934,14 @@
     const btns = document.querySelectorAll('.tracker-btn');
     if (btns[idx]) { btns[idx].classList.add('flash'); setTimeout(() => btns[idx].classList.remove('flash'), 200); }
 
-    showToast(`#${jersey} — ${cat}${note ? ' — ' + note : ''}`);
+    showToast(`#${jersey} — Play ${playNum} — ${cat}${note ? ' — ' + note : ''}`);
   }
 
   document.getElementById('jerseyInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); if (document.getElementById('jerseyInput').value.trim()) submitJerseyEntry(); }
+    if (e.key === 'Enter') { e.preventDefault(); if (document.getElementById('jerseyInput').value.trim()) document.getElementById('playNumInput').focus(); }
+  });
+  document.getElementById('playNumInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('noteInputModal').focus(); }
   });
   document.getElementById('noteInputModal').addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); submitJerseyEntry(); }
@@ -940,9 +951,9 @@
   function renderLog() {
     const c = document.getElementById('logContent');
     if (state.events.length === 0) { c.innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>No events recorded yet.</p></div>'; return; }
-    let h = '<div class="log-table-wrap"><table class="log-table"><thead><tr><th>#</th><th>Time</th><th>Jersey</th><th>Category</th><th>Period</th><th>Note</th><th></th></tr></thead><tbody>';
+    let h = '<div class="log-table-wrap"><table class="log-table"><thead><tr><th>#</th><th>Time</th><th>Jersey</th><th>Play</th><th>Category</th><th>Period</th><th>Note</th><th></th></tr></thead><tbody>';
     state.events.slice().reverse().forEach((ev, i) => {
-      h += `<tr><td>${state.events.length - i}</td><td>${ev.time}</td><td><span class="jersey-badge">#${ev.jersey}</span></td><td><strong>${ev.category}</strong></td><td>${ev.period||'—'}</td><td>${ev.note||'—'}</td><td><button class="delete-row" onclick="deleteEvent(${ev.id})">✕</button></td></tr>`;
+      h += `<tr><td>${state.events.length - i}</td><td>${ev.time}</td><td><span class="jersey-badge">#${ev.jersey}</span></td><td>${ev.playNum||'—'}</td><td><strong>${ev.category}</strong></td><td>${ev.period||'—'}</td><td>${ev.note||'—'}</td><td><button class="delete-row" onclick="deleteEvent(${ev.id})">✕</button></td></tr>`;
     });
     h += '</tbody></table></div>';
     c.innerHTML = h;
@@ -1221,9 +1232,9 @@
     const wb = XLSX.utils.book_new();
 
     // Event Log sheet
-    const logData = state.events.map((ev, i) => ({ '#': i+1, 'Date': state.date, 'Session': state.title, 'Time': ev.time, 'Jersey #': ev.jersey, 'Category': ev.category, 'Period': ev.period||'', 'Note': ev.note||'' }));
+    const logData = state.events.map((ev, i) => ({ '#': i+1, 'Date': state.date, 'Session': state.title, 'Time': ev.time, 'Jersey #': ev.jersey, 'Play #': ev.playNum||'', 'Category': ev.category, 'Period': ev.period||'', 'Note': ev.note||'' }));
     const ws1 = XLSX.utils.json_to_sheet(logData);
-    ws1['!cols'] = [{wch:5},{wch:12},{wch:25},{wch:12},{wch:10},{wch:20},{wch:18},{wch:30}];
+    ws1['!cols'] = [{wch:5},{wch:12},{wch:25},{wch:12},{wch:10},{wch:8},{wch:20},{wch:18},{wch:30}];
     XLSX.utils.book_append_sheet(wb, ws1, 'Event Log');
 
     // Summary sheet
